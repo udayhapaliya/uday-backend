@@ -1,7 +1,4 @@
-import express from "express";
 import connectDB from './db/db.js';
-const app = express();
-
 // import mongoose from 'mongoose';
 // import { DB_NAME } from './constants';
 
@@ -9,8 +6,20 @@ const app = express();
 //     path:'./env'
 // });
 
-connectDB();
+connectDB()
+    .then(() => {
+        app.on("error", (error) => {
+            console.log("error: ", error);
+            throw error;
+        })
 
+        app.listen(process.env.PORT, () => {
+            console.log(`App listening on port: ${process.env.PORT}`);
+        })
+    })
+    .catch((error) => {
+        console.log("error(connection-database): ", error);
+    })
 
 
 
