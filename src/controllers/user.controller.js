@@ -27,41 +27,42 @@ const registerUser = asyncHandler(async (req, res) => {
     });
 
     if (exitedUser) {
-        throw new ApiError(400, 'User already exists with this email or username');
+        throw new ApiError(409, 'User already exists with this email or username');
     }
 
-    if (req.files) {
-        const { avatar, coverImage } = req.files;
-        if (avatar && avatar[0]) {
-            const avatar = await uploadOnCloudinary(avatar[0].path);
-        }
-        else {
-            throw new ApiError(400, 'Avatar image is required');
-        }
+    const avatarLocalPath = req.files?.avatar[0]?.path;
+    // const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
-        if (coverImage && coverImage[0]) {
-            const coverImage = await uploadOnCloudinary(coverImage[0].path);
-        }
-    }
-
-    if (!avatar) {
+    if (!avatarLocalPath) {
         throw new ApiError(400, 'Avatar image is required');
+    }
+
+    let coverImageLocalPath = null;
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0]?.path;
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+    const coverImage = coverImageLocalPath ? await uploadOnCloudinary(coverImageLocalPath) : null;
+
+    if(!avatar) {
+        throw new ApiError(500, 'Avatar image upload failed');
     }
 
     const user = await User.create({
         fullName,
         avatar: avatar.url,
-        coverImage: coverImage ? coverImage.url : null,
+        coverImage: coverImage?.url || "",
         email,
         password,
-        username : username.toLowerCase(),
+        username: username.toLowerCase(),
     });
 
     const createdUser = await User.findById(user._id).select(
         "-password -refreshToken"
     );
 
-    if(!createdUser){
+    if (!createdUser) {
         throw new ApiError(500, 'User registration failed');
     }
 
