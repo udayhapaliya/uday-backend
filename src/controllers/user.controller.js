@@ -4,6 +4,7 @@ import { User } from '../models/user.model.js';
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import jwt from "jsonwebtoken";
+import { deleteFile } from '../utils/deleteFromCloudinary.js';
 
 const generateTokens = async function (userId) {
     try {
@@ -231,7 +232,7 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(
-            200, req.user, "current user fetched successfully"
+            new ApiResponse(200, req.user, "current user fetched successfully")
         )
 })
 
@@ -271,6 +272,11 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Error while uploading avatar on cloudinary");
     }
 
+    // add delete old image utility function and use
+    const oldAvatarUser = await User.findById(req.user?._id);
+    const oldAvatarUrl = oldAvatarUser.avatar;
+
+
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
@@ -281,9 +287,24 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         { new: true }
     ).select("-password");
 
+
+    if (oldAvatarUrl) {
+        let deleteOldAvatar;
+        try {
+            deleteOldAvatar = await deleteFile(oldAvatarUrl);
+        }
+        catch (err) {
+            console.error("Error deleting old avatar from Cloudinary:", oldAvatarUrl, err);
+        }
+
+        if (deleteOldAvatar?.result !== "ok") {
+            console.error("Old avatar deletion did not return ok:", oldAvatarUrl, deleteOldAvatar);
+        }
+    }
+
     return res
-    .status(200)
-    .json(new ApiResponse(200, user, "Avatar successfully updated"))
+        .status(200)
+        .json(new ApiResponse(200, user, "Avatar successfully updated"))
 })
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
@@ -299,6 +320,11 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Error while uploading cover image on cloudinary");
     }
 
+    // add delete old image utility function and use
+    const oldCoverImageUser = await User.findById(req.user?._id);
+    const oldCoverImageUrl = oldCoverImageUser.coverImage;
+
+
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
@@ -309,19 +335,34 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         { new: true }
     ).select("-password");
 
+
+    if (oldCoverImageUrl) {
+        let deleteOldCoverImage;
+        try {
+            deleteOldCoverImage = await deleteFile(oldCoverImageUrl);
+        }
+        catch (err) {
+            console.error("Error deleting old cover image from Cloudinary:", oldCoverImageUrl, err);
+        }
+
+        if (deleteOldCoverImage?.result !== "ok") {
+            console.error("Old cover image deletion did not return ok:", oldCoverImageUrl, deleteOldCoverImage);
+        }
+    }
+
     return res
-    .status(200)
-    .json(new ApiResponse(200, user, "Cover image successfully updated"))
+        .status(200)
+        .json(new ApiResponse(200, user, "Cover image successfully updated"))
 })
 
-export { 
-    registerUser, 
-    loginUser, 
-    logoutUser, 
-    refreshAccessToken, 
-    changeCurrentPassword, 
-    getCurrentUser, 
-    updateAccountDetails, 
-    updateUserAvatar, 
-    updateUserCoverImage 
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateUserAvatar,
+    updateUserCoverImage
 };
